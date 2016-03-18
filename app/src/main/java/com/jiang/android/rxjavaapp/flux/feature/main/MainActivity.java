@@ -26,15 +26,10 @@ import com.jiang.android.rxjavaapp.base.BaseActivity;
 import com.jiang.android.rxjavaapp.base.BaseWebActivity;
 import com.jiang.android.rxjavaapp.common.CommonString;
 import com.jiang.android.rxjavaapp.database.alloperators;
-import com.jiang.android.rxjavaapp.database.helper.DbUtil;
 import com.jiang.android.rxjavaapp.database.operators;
+import com.jiang.android.rxjavaapp.flux.action.CommonAction;
 import com.nostra13.universalimageloader.core.ImageLoader;
 import flux.Flux;
-import rx.Observable;
-import rx.Subscriber;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
-import rx.schedulers.Schedulers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,138 +57,23 @@ public class MainActivity extends BaseActivity {
 
     MainRequester requester;
     @Override
+    protected int getContentViewLayoutID() {
+        return R.layout.activity_main;
+    }
+
+    @Override
     protected void initViewsAndEvents() {
         mContentRecyclerView = (RecyclerView) findViewById(R.id.id_content);
-
         requester = Flux.getRequester(this, MainRequester.class);
-
         initToolBar();
         initNavigationView();
         initNavRecycerView();
-
         requester.fillOperators();
     }
 
-    private void initContentRecyclerView() {
-        LinearLayoutManager manager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
-        mContentRecyclerView.setLayoutManager(manager);
-        mContentRecyclerView.setHasFixedSize(true);
-        requester.getOperatorById(mList.get(0).getOuter_id());
-
-    }
-
-    private void initContentAdapter() {
-        if (mContentAdapter == null) {
-            mContentAdapter = new BaseAdapter() {
-                @Override
-                protected void onBindView(BaseViewHolder holder, final int position) {
-
-                    ImageView iv = holder.getView(R.id.item_content_iv);
-                    TextView title = holder.getView(R.id.item_content_title);
-                    TextView desc = holder.getView(R.id.item_content_desc);
-                    title.setText(mContentLists.get(position).getName());
-                    desc.setText(mContentLists.get(position).getDesc());
-                    ImageLoader.getInstance().displayImage(mContentLists.get(position).getImg(), iv);
-                    iv.setClickable(true);
-                    iv.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            showImgFullScreen(position);
-                        }
-                    });
-                }
-
-                @Override
-                protected int getLayoutID(int position) {
-                    return R.layout.item_index_content;
-                }
-
-                @Override
-                public int getItemCount() {
-                    return mContentLists.size();
-                }
-            };
-            mContentAdapter.setOnItemClickListener(new OnItemClickListener() {
-                @Override
-                public void onItemClick(int position) {
-                    Bundle bundle = new Bundle();
-                    bundle.putString(BaseWebActivity.BUNDLE_KEY_TITLE, mContentLists.get(position).getName());
-                    bundle.putString(BaseWebActivity.BUNDLE_KEY_URL, mContentLists.get(position).getUrl());
-                    bundle.putBoolean(BaseWebActivity.BUNDLE_KEY_SHOW_BOTTOM_BAR, true);
-                    readyGo(BaseWebActivity.class, bundle);
-
-                }
-            });
-            mContentRecyclerView.setAdapter(mContentAdapter);
-        } else {
-            mContentAdapter.notifyDataSetChanged();
-        }
-    }
-
-    private void initNavRecycerView() {
-        LinearLayoutManager manager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
-        mNavRecyclerView.setLayoutManager(manager);
-        mNavRecyclerView.setHasFixedSize(true);
-    }
-
-    @ReceiveType(type = FILL_OPERATOR_OK)
-    public void fillOperatorOK(FluxResponse response) {
-        List<operators> operatorsList = response.getOnly();
-        mList.clear();
-        mList.addAll(operatorsList);
-        initAdapter();
-        initContentRecyclerView();
-    }
-
-    @ReceiveType(type = FILL_OPERATOR_FAIL)
-    public void fillOperatorFAIL(FluxResponse response) {
-        showToast(getWindow().getDecorView(), response.getOnly().toString());
-    }
-
-    @ReceiveType(type = GET_OP_BY_ID)
-    public void getOperatorById(FluxResponse response) {
-        List<alloperators> query = response.getOnly();
-        mContentLists.clear();
-        mContentLists.addAll(query);
-        initContentAdapter();
-    }
-
-    private void initAdapter() {
-
-        mAdapter = new BaseAdapter() {
-            @Override
-            public int getItemCount() {
-                return mList.size();
-            }
-
-            @Override
-            protected void onBindView(BaseViewHolder holder, int position) {
-                TextView tv = holder.getView(R.id.item_nav_head_v);
-                tv.setText(mList.get(position).getName());
-            }
-
-            @Override
-            protected int getLayoutID(int position) {
-                return R.layout.item_nav_head;
-            }
-        };
-        mAdapter.setOnItemClickListener(new OnItemClickListener() {
-            @Override
-            public void onItemClick(int position) {
-                requester.getOperatorById(mList.get(position).getOuter_id());
-                //getAllOperatorById(mList.get(position).getOuter_id());
-                if (drawer.isDrawerOpen(GravityCompat.START)) {
-                    drawer.closeDrawer(GravityCompat.START);
-                }
-            }
-        });
-        mNavRecyclerView.setAdapter(mAdapter);
-    }
-
-
-    @Override
-    protected int getContentViewLayoutID() {
-        return R.layout.activity_main;
+    private void initToolBar() {
+        toolbar = (Toolbar) findViewById(R.id.common_toolbar);
+        setSupportActionBar(toolbar);
     }
 
     private void initNavigationView() {
@@ -221,10 +101,91 @@ public class MainActivity extends BaseActivity {
 
     }
 
-    private void initToolBar() {
-        toolbar = (Toolbar) findViewById(R.id.common_toolbar);
-        setSupportActionBar(toolbar);
+    private void initNavRecycerView() {
+        LinearLayoutManager manager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        mNavRecyclerView.setLayoutManager(manager);
+        mNavRecyclerView.setHasFixedSize(true);
     }
+
+    private void initContentRecyclerView() {
+        LinearLayoutManager manager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        mContentRecyclerView.setLayoutManager(manager);
+        mContentRecyclerView.setHasFixedSize(true);
+        requester.getOperatorById(mList.get(0).getOuter_id());
+
+    }
+
+    private void initContentAdapter() {
+        if (mContentAdapter == null) {
+            mContentAdapter = new MainAdapter();
+            mContentAdapter.setOnItemClickListener(new OnItemClickListener() {
+                @Override
+                public void onItemClick(int position) {
+                    Bundle bundle = new Bundle();
+                    bundle.putString(BaseWebActivity.BUNDLE_KEY_TITLE, mContentLists.get(position).getName());
+                    bundle.putString(BaseWebActivity.BUNDLE_KEY_URL, mContentLists.get(position).getUrl());
+                    bundle.putBoolean(BaseWebActivity.BUNDLE_KEY_SHOW_BOTTOM_BAR, true);
+                    readyGo(BaseWebActivity.class, bundle);
+                }
+            });
+            mContentRecyclerView.setAdapter(mContentAdapter);
+        } else {
+            mContentAdapter.notifyDataSetChanged();
+        }
+    }
+
+    private void initNavAdapter() {
+        mAdapter = new NavAdapter();
+        mAdapter.setOnItemClickListener(new OnItemClickListener() {
+            @Override
+            public void onItemClick(int position) {
+                requester.getOperatorById(mList.get(position).getOuter_id());
+                if (drawer.isDrawerOpen(GravityCompat.START)) {
+                    drawer.closeDrawer(GravityCompat.START);
+                }
+            }
+        });
+        mNavRecyclerView.setAdapter(mAdapter);
+    }
+
+    private void showImgFullScreen(int pos) {
+        if (photos == null) {
+            photos = new ArrayList<>();
+        }
+        if (photos.size() != mContentLists.size()) {
+            photos.clear();
+            for (int i = 0; i < mContentLists.size(); i++) {
+                photos.add(mContentLists.get(i).getImg());
+            }
+        }
+        Bundle bundle = new Bundle();
+        bundle.putStringArrayList("files", photos);
+        bundle.putInt("position", pos);
+        readyGo(PhotoPagerActivity.class, bundle);
+    }
+
+    @ReceiveType(type = FILL_OPERATOR_OK)
+    public void fillOperatorOK(FluxResponse response) {
+        List<operators> operatorsList = response.getOnly();
+        mList.clear();
+        mList.addAll(operatorsList);
+        initNavAdapter();
+        initContentRecyclerView();
+    }
+
+    @ReceiveType(type = FILL_OPERATOR_FAIL)
+    public void fillOperatorFAIL(FluxResponse response) {
+        showToast(getWindow().getDecorView(), response.getOnly().toString());
+    }
+
+    @ReceiveType(type = GET_OP_BY_ID)
+    public void getOperatorById(FluxResponse response) {
+        List<alloperators> query = response.getOnly();
+        mContentLists.clear();
+        mContentLists.addAll(query);
+        initContentAdapter();
+    }
+
 
     @Override
     public void onBackPressed() {
@@ -252,35 +213,56 @@ public class MainActivity extends BaseActivity {
                 readyGo(BaseWebActivity.class, bundle);
                 break;
             case R.id.share:
-                shareText(item.getActionView());
+                CommonAction.shareText(MainActivity.this, item.getActionView());
                 break;
         }
-
-
         return super.onOptionsItemSelected(item);
     }
-    public void shareText(View view) {
-        Intent shareIntent = new Intent();
-        shareIntent.setAction(Intent.ACTION_SEND);
-        shareIntent.putExtra(Intent.EXTRA_TEXT, "Hi,我正在学习RxJava,推荐你下载这个app一起学习吧 https://github.com/jiang111/RxJavaApp/releases");
-        shareIntent.setType("text/plain");
-        startActivity(Intent.createChooser(shareIntent, "分享到"));
+
+    class MainAdapter extends BaseAdapter {
+        @Override
+        protected void onBindView(BaseViewHolder holder, final int position) {
+            ImageView iv = holder.getView(R.id.item_content_iv);
+            TextView title = holder.getView(R.id.item_content_title);
+            TextView desc = holder.getView(R.id.item_content_desc);
+            title.setText(mContentLists.get(position).getName());
+            desc.setText(mContentLists.get(position).getDesc());
+            ImageLoader.getInstance().displayImage(mContentLists.get(position).getImg(), iv);
+            iv.setClickable(true);
+            iv.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showImgFullScreen(position);
+                }
+            });
+        }
+
+        @Override
+        protected int getLayoutID(int position) {
+            return R.layout.item_index_content;
+        }
+
+        @Override
+        public int getItemCount() {
+            return mContentLists.size();
+        }
     }
 
-    public void showImgFullScreen(int pos) {
-        if (photos == null) {
-            photos = new ArrayList<>();
+    class NavAdapter extends BaseAdapter {
+        @Override
+        public int getItemCount() {
+            return mList.size();
         }
-        if (photos.size() != mContentLists.size()) {
-            photos.clear();
-            for (int i = 0; i < mContentLists.size(); i++) {
-                photos.add(mContentLists.get(i).getImg());
-            }
-        }
-        Bundle bundle = new Bundle();
-        bundle.putStringArrayList("files", photos);
-        bundle.putInt("position", pos);
-        readyGo(PhotoPagerActivity.class, bundle);
 
+        @Override
+        protected void onBindView(BaseViewHolder holder, int position) {
+            TextView tv = holder.getView(R.id.item_nav_head_v);
+            tv.setText(mList.get(position).getName());
+        }
+
+        @Override
+        protected int getLayoutID(int position) {
+            return R.layout.item_nav_head;
+        }
     }
 }
